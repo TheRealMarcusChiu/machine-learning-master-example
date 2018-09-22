@@ -1,6 +1,7 @@
 import csv
 import math
 import sys
+import random
 
 
 class Node:
@@ -10,6 +11,15 @@ class Node:
         self.negative = None
         self.attribute_index = attribute_index
         self.label = label
+        self.examples = None
+
+    def clone(self):
+        clone = Node(self.attribute_index, self.label)
+        clone.examples = self.examples
+        if isinstance(self.positive, Node):
+            clone.negative = self.negative.clone()
+            clone.positive = self.positive.clone()
+        return clone
 
     def PrintTree(self, attribute_names):
         if isinstance(self.positive, Node):
@@ -32,6 +42,23 @@ class Node:
             self.positive.PrintTreeRecursive(level + 1, attribute_names)
         else:
             print(self.label, end="", flush=True)
+
+    def non_leaf_nodes(self):
+        non_leaf_nodes = []
+        if isinstance(self.positive, Node):
+            non_leaf_nodes.append(self)
+            non_leaf_nodes += self.negative.non_leaf_nodes()
+            non_leaf_nodes += self.positive.non_leaf_nodes()
+        return non_leaf_nodes
+
+    def predictValue(self, row):
+        if isinstance(self.positive, Node):
+            if row[self.attribute_index] == '1':
+                return self.positive.predictValue(row)
+            else:
+                return self.negative.predictValue(row)
+        else:
+            return self.label
 
 
 def entropy(my_list):
@@ -88,6 +115,7 @@ def id3(examples, attributes):
         else:
             node.label = 0
     else:
+        node.examples = examples
         attribute_index = best_attribute_index(examples, attributes)
         node.attribute_index = attribute_index
 
@@ -117,6 +145,46 @@ def id3(examples, attributes):
     return node
 
 
+def accuracy(d_tree, examples):
+    size = len(examples)
+    num_right = 0
+    for x in examples:
+        if int(x[20]) == d_tree.predictValue(x):
+            num_right += 1
+    return num_right / size
+
+
+def post_pruning(d_tree, l, k, validation_examples):
+    best = d_tree.clone()
+    best_accuracy = accuracy(best, validation_examples)
+    for i in range(0, l + 1):
+        d_prime = best.clone()
+
+        m = random.randint(0, k)
+        for j in range(0, m):
+            non_leaf_nodes = d_prime.non_leaf_nodes()
+            the_chosen_one = non_leaf_nodes[random.randint(0, len(non_leaf_nodes))]
+
+            the_chosen_one.positive = None
+            the_chosen_one.negative = None
+            the_chosen_one.attribute_index = None
+
+            size = len(the_chosen_one.examples)
+            pos_size = sum(1 for i in the_chosen_one.examples if i[20] == '1')
+            neg_size = size - pos_size
+
+            if pos_size > neg_size:
+                the_chosen_one.label = 1
+            else:
+                the_chosen_one.label = 0
+
+        d_prime_accuracy = accuracy(d_prime, validation_examples)
+        if d_prime_accuracy > best_accuracy:
+            best_accuracy = d_prime_accuracy
+            best = d_prime
+    return best
+
+
 l = sys.argv[1]
 k = sys.argv[2]
 training_set_file = sys.argv[3]
@@ -126,9 +194,25 @@ to_print = sys.argv[6]
 
 with open(training_set_file) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
-    my_list = list(csv_reader)
-    attribute_names = my_list.pop(0)
+    training_examples = list(csv_reader)
+    attribute_names = training_examples.pop(0)
     attribute_names.remove('Class')
-    root = id3(my_list, list(range(0, 20)))
-    if to_print == "yes":
-        root.PrintTree(attribute_names)
+
+with open(validation_set_file) as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter=',')
+    validation_examples = list(csv_reader)
+    validation_examples.pop(0)
+
+with open(test_set_file) as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter=',')
+    test_examples = list(csv_reader)
+    test_examples.pop(0)
+
+d_tree = id3(training_examples, list(range(0, 20)))
+d_tree.PrintTree(attribute_names)
+better_d_tree = post_pruning(d_tree, int(l), int(k), validation_examples)
+
+if to_print == "yes":
+    d_tree.PrintTree(attribute_names)
+    print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
+    better_d_tree.PrintTree(attribute_names)
