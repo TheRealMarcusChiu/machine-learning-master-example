@@ -161,7 +161,7 @@ def post_pruning(d_tree, l, k, validation_examples):
         d_prime = best.clone()
 
         m = random.randint(0, k)
-        for j in range(0, m):
+        for j in range(0, m + 1):
             non_leaf_nodes = d_prime.non_leaf_nodes()
             the_chosen_one = non_leaf_nodes[random.randint(0, len(non_leaf_nodes))]
 
@@ -213,6 +213,5 @@ d_tree.PrintTree(attribute_names)
 better_d_tree = post_pruning(d_tree, int(l), int(k), validation_examples)
 
 if to_print == "yes":
-    d_tree.PrintTree(attribute_names)
-    print("HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
+    # d_tree.PrintTree(attribute_names)
     better_d_tree.PrintTree(attribute_names)
