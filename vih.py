@@ -29,6 +29,7 @@ class Node:
             print()
             print("{} = 1 : ".format(attribute_names[self.attribute_index]), end="", flush=True)
             self.positive.PrintTreeRecursive(1, attribute_names)
+            print()
         else:
             print(self.label)
 
@@ -160,20 +161,22 @@ def post_pruning(d_tree, l, k, validation_examples):
         m = random.randint(0, k)
         for j in range(0, m + 1):
             non_leaf_nodes = d_prime.non_leaf_nodes()
-            the_chosen_one = non_leaf_nodes[random.randint(0, len(non_leaf_nodes))]
 
-            the_chosen_one.positive = None
-            the_chosen_one.negative = None
-            the_chosen_one.attribute_index = None
+            if len(non_leaf_nodes) > 0:
+                the_chosen_one = non_leaf_nodes[random.randint(0, len(non_leaf_nodes) - 1)]
 
-            size = len(the_chosen_one.examples)
-            pos_size = sum(1 for i in the_chosen_one.examples if i[20] == '1')
-            neg_size = size - pos_size
+                the_chosen_one.positive = None
+                the_chosen_one.negative = None
+                the_chosen_one.attribute_index = None
 
-            if pos_size > neg_size:
-                the_chosen_one.label = 1
-            else:
-                the_chosen_one.label = 0
+                size = len(the_chosen_one.examples)
+                pos_size = sum(1 for i in the_chosen_one.examples if i[20] == '1')
+                neg_size = size - pos_size
+
+                if pos_size > neg_size:
+                    the_chosen_one.label = 1
+                else:
+                    the_chosen_one.label = 0
 
         d_prime_accuracy = accuracy(d_prime, validation_examples)
         if d_prime_accuracy > best_accuracy:
@@ -207,8 +210,12 @@ with open(test_set_file) as csv_file:
 
 d_tree = id3(training_examples, list(range(0, 20)))
 d_tree.PrintTree(attribute_names)
-better_d_tree = post_pruning(d_tree, int(l), int(k), validation_examples)
+
+post_pruned_d_tree = post_pruning(d_tree, int(l), int(k), validation_examples)
 
 if to_print == "yes":
     # d_tree.PrintTree(attribute_names)
-    better_d_tree.PrintTree(attribute_names)
+    post_pruned_d_tree.PrintTree(attribute_names)
+
+print("accuracy on test examples BEFORE post pruning : {}".format(accuracy(d_tree, test_examples)))
+print("accuracy on test examples AFTER  post pruning : {}".format(accuracy(post_pruned_d_tree, test_examples)))
