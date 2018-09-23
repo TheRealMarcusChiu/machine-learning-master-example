@@ -7,7 +7,7 @@ example command
 
 # Reports
 
-- __traning data set 1__
+- __data set 1__
   - __Report the accuracy on the test set for decision trees constructed using the two heuristics mentioned above.__
     - igh accuracy: 75.85%
     - vih accuracy: 69.3%
@@ -23,7 +23,7 @@ example command
     - L=5 K=10 : vih=66.75% igh=76.5%
     - L=20 K=20 : vih=68.85% igh=76.25%
     
-- __traning data set 2__
+- __data set 2__
   - __Report the accuracy on the test set for decision trees constructed using the two heuristics mentioned above.__
     - igh accuracy: 72.33%
     - vih accuracy: 67.66%
