@@ -3,36 +3,37 @@ import numpy as np
 import enum
 
 
-class MultiArmBandit:
+class Bandit:
 
     def __init__(self, q: [float]):
         self.q = q
 
+    # returns "reward"
     def execute_action(self, action_index: int):
-        # return self.q[action_index]
+        # return self.q[action_index] below or this
         return np.random.normal(self.q[action_index], 1, 1)[0]
 
-    def update_q_star(self, mu=0, sigma=0.01):
+    def update_q_values(self, mu=0, sigma=0.01):
         for idx, value in enumerate(self.q):
             value += np.random.normal(mu, sigma, 1)[0]
             self.q[idx] = value
 
 
-class Type(enum.Enum):
+class StepType(enum.Enum):
     SAMPLE_AVERAGE = 1
-    CONSTANT_STEP_SIZE = 2
+    CONSTANT_STEP = 2
 
 
-class MultiArmBanditLearner:
+class BanditLearner:
 
-    def __init__(self, q_estimate: [float], epsilon: float, t: Type, constant_step_size=None):
+    def __init__(self, q_estimate: [float], epsilon: float, t: StepType, constant_step_size=None):
         self.epsilon = epsilon
         self.reward_total = 0.0
 
         self.type = t
-        if t == Type.SAMPLE_AVERAGE:
+        if t == StepType.SAMPLE_AVERAGE:
             self.q_estimate = [0] * len(q_estimate)
-        elif t == Type.CONSTANT_STEP_SIZE:
+        elif t == StepType.CONSTANT_STEP:
             self.q_estimate = q_estimate
             self.constant_step_size = constant_step_size
 
@@ -79,16 +80,16 @@ class MultiArmBanditLearner:
         return index
 
     def get_step_size(self, index: int):
-        if self.type == Type.SAMPLE_AVERAGE:
+        if self.type == StepType.SAMPLE_AVERAGE:
             return 1/self.n[index]
-        elif self.type == Type.CONSTANT_STEP_SIZE:
+        elif self.type == StepType.CONSTANT_STEP:
             return self.constant_step_size
 
-    def step(self, env: MultiArmBandit):
+    def step(self, bandit: Bandit):
         action_index = self.choose_action_index()
         self.n[action_index] += 1
 
-        r = env.execute_action(action_index)
+        r = bandit.execute_action(action_index)
         q = self.q_estimate[action_index]
         s = self.get_step_size(action_index)
         self.q_estimate[action_index] = q + s * (r - q)
@@ -96,62 +97,79 @@ class MultiArmBanditLearner:
         self.reward_total += r
 
 
-class EnvironmentType(enum.Enum):
+class BanditType(enum.Enum):
     STATIC = 1
     DYNAMIC = 2
 
 
 if __name__ == "__main__":
 
+    num_actions = 10
+
     mean = 0
     std = 1
-    size = 10
-    environment = MultiArmBandit(np.random.normal(mean, std, size))
-    print(environment.q)
+    bandit = Bandit(np.random.normal(mean, std, num_actions))
+    print(bandit.q)
 
     eps = 0.1
-    ss = 0.1
+    css = 0.1
 
 
-    def run(t: EnvironmentType):
-        # rl_sa
-        # sample average
+    def run(t: BanditType):
+        # sa
+        # - sample average
+        # - different initial q estimate values does not change performance in sample average
 
-        # rl_css_5
-        # Optimistic Initial Values
-        # initial q estimate values = 5, therefore encourages exploration temporarily in beginning,
-        # bc true q values are mean=0 and var=std=1
-        # The result is that all actions are tried several times before the value estimates converge.
-        # The system does a fair amount of exploration even if greedy actions are selected all the time
-        # look at (Constant Step Size - Initial Q Estimates Graph.png)
+        # sa_ucb_2
+        # - sample average with Upper Confidence Bound c=2
+        # - different initial q estimate values does not change performance in sample average
 
-        rl_sa          = MultiArmBanditLearner([0] * size, eps, Type.SAMPLE_AVERAGE, None)
-        rl_sa_ucb_2    = MultiArmBanditLearner([0] * size, eps, Type.SAMPLE_AVERAGE, None).with_ucb(2)
-        rl_css_0       = MultiArmBanditLearner([0] * size, eps, Type.CONSTANT_STEP_SIZE, ss)
-        rl_css_5       = MultiArmBanditLearner([5] * size, eps, Type.CONSTANT_STEP_SIZE, ss)
-        rl_css_5_ucb_2 = MultiArmBanditLearner([5] * size, eps, Type.CONSTANT_STEP_SIZE, ss).with_ucb(2)
+        # css_0
+        # - constant step size
+        # initial q estimate values = 0
+
+        # css_5
+        # - Optimistic Initial Values
+        # - initial q estimate values = 5, therefore encourages exploration temporarily in beginning,
+        # - bc true q values are mean=0 and var=std=1
+        # - The result is that all actions are tried several times before the value estimates converge.
+        # - The system does a fair amount of exploration even if greedy actions are selected all the time
+        # - look at (Constant Step Size - Initial Q Estimates Graph.png)
+
+        # css_5_ucb_2
+        # - same as css_5 but with (Upper Confidence Bound c=2)
+
+        sa          = BanditLearner([0] * num_actions, eps, StepType.SAMPLE_AVERAGE, None)
+        sa_ucb_2    = BanditLearner([0] * num_actions, eps, StepType.SAMPLE_AVERAGE, None).with_ucb(2)
+        css_0       = BanditLearner([0] * num_actions, eps, StepType.CONSTANT_STEP, css)
+        css_5       = BanditLearner([5] * num_actions, eps, StepType.CONSTANT_STEP, css)
+        css_5_ucb_2 = BanditLearner([5] * num_actions, eps, StepType.CONSTANT_STEP, css).with_ucb(2)
+
+        multi_arm_bandit_learners = [
+            sa,
+            sa_ucb_2,
+            css_0,
+            css_5,
+            css_5_ucb_2]
 
         for i in range(100000):
-            rl_sa.step(environment)
-            rl_sa_ucb_2.step(environment)
-            rl_css_0.step(environment)
-            rl_css_5.step(environment)
-            rl_css_5_ucb_2.step(environment)
+            for learners in multi_arm_bandit_learners:
+                learners.step(bandit)
 
-            if t == EnvironmentType.DYNAMIC:
-                environment.update_q_star()
+            if t == BanditType.DYNAMIC:
+                bandit.update_q_values()
 
-        print("- sample average                                              reward total: " + str(rl_sa.reward_total))
-        print("- sample average with UCB (c=2)                               reward total: " + str(rl_sa_ucb_2.reward_total))
-        print("- constant step size (initial q estimates = 0)                reward total: " + str(rl_css_0.reward_total))
-        print("- constant step size (initial q estimates = 5)                reward total: " + str(rl_css_5.reward_total))
-        print("- constant step size (initial q estimates = 5) with UCB (c=2) reward total: " + str(rl_css_5_ucb_2.reward_total))
+        print("- sample average                                              reward total: " + str(sa.reward_total))
+        print("- sample average with UCB (c=2)                               reward total: " + str(sa_ucb_2.reward_total))
+        print("- constant step size (initial q estimates = 0)                reward total: " + str(css_0.reward_total))
+        print("- constant step size (initial q estimates = 5)                reward total: " + str(css_5.reward_total))
+        print("- constant step size (initial q estimates = 5) with UCB (c=2) reward total: " + str(css_5_ucb_2.reward_total))
 
 
-    # Static Environment
+    # Static Bandit
     print("Multi-Armed Bandit - STATIC")
-    run(EnvironmentType.STATIC)
+    run(BanditType.STATIC)
 
-    # Dynamic Environment
+    # Dynamic Bandit
     print("\nMulti-Armed Bandit - DYNAMIC")
-    run(EnvironmentType.DYNAMIC)
+    run(BanditType.DYNAMIC)
