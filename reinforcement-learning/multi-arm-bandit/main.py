@@ -109,7 +109,7 @@ if __name__ == "__main__":
     mean = 0
     std = 1
     bandit = Bandit(np.random.normal(mean, std, num_actions))
-    print(bandit.q)
+    print("reward values: " + bandit.q)
 
     eps = 0.1
     css = 0.1
